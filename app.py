@@ -7,53 +7,11 @@ from charts import create_table, set_layout
 import plotly.graph_objects as go
 import dash_trich_components as dtc
 
-from styling import PAGE_SIZE
-
-
-# select the Bootstrap stylesheet2 and figure template2 for the theme toggle here:
-template_theme1 = "lumen"
-template_theme2 = "darkly"
-url_theme1 = dbc.themes.LUMEN
-url_theme2 = dbc.themes.DARKLY
-
-
-
-# read data
-university = pd.read_csv('data/data.csv')
 
 app = Dash(
-    __name__, external_stylesheets=[url_theme1, dbc.themes.BOOTSTRAP],
+    __name__, external_stylesheets=[dbc.themes.BOOTSTRAP],
 )
 server = app.server
-
-
-@app.callback(
-    Output('barchart', 'figure'),
-
-    [Input('table', "data"),
-     Input('table', "page_current"),
-     Input('table', "page_size"),
-    ],
-    # [State("university-table", "columns")],
-)
-def update_table(data, page_current, page_size):
-    df = pd.DataFrame(data)
-    # sort df with pages
-    df = df.iloc[page_current * page_size:(page_current + 1) * page_size]
-    row_barchart = go.Figure()
-    row_barchart.add_trace(
-        go.Bar(
-            x=df["Points"][::-1],
-            y=df.index,
-            orientation="h",
-            text=df["Points"][::-1],
-            marker_color='#cfdad9',
-            textfont=dict(color='black')
-        )
-    )
-    set_layout(row_barchart, heightgraph=len(df) * 42)
-
-    return row_barchart
 
 theme_toggle = dtc.ThemeToggle(
         bg_color_dark='#232323',
@@ -64,8 +22,8 @@ theme_toggle = dtc.ThemeToggle(
     )
 theme_switch = html.Div(theme_toggle, className='theme__switcher')
 header = html.Div([
-        html.H1('Table + Bar'),
-        html.P('There is no way to add a bar chart to the table in dash. You can work with Displaying Data Bars, but it looks rather clumsy'),
+        html.H1('Filter set'),
+        html.P('We create different types of filters that work together'),
 ], className='dash__header')
 
 footer = html.Div([
@@ -73,20 +31,76 @@ footer = html.Div([
 
 ], className='dash__footer')
 
+
+
+df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/2014_world_gdp_with_codes.csv')
+
+fig = go.Figure(data=go.Choropleth(
+    locations = df['CODE'],
+    z = df['GDP (BILLIONS)'],
+    text = df['COUNTRY'],
+    colorscale = 'Blues',
+
+    autocolorscale=False,
+    reversescale=True,
+    marker_line_color='darkgray',
+    # marker_line_width=0.5,
+    # colorbar_tickprefix = '$',
+    # colorbar_title = 'GDP<br>Billions US$',
+))
+_ = fig.update_traces(showscale=False)
+fig.update_layout(
+    title_text='2014 Global GDP',
+    showlegend=False,
+    dragmode=False,
+    clickmode='event+select',
+    geo=dict(
+
+        showframe=False,
+        showcoastlines=False,
+        projection_type='patterson'
+    ),
+
+)
+
+
 app.layout = html.Div([
                     header,
                     theme_switch,
                     html.Div([
                         html.Div([
-                            html.Div('Table - Points information ', className="table_name"),
-                            html.Div([
-                                    create_table(university, tableid='table', page_size=PAGE_SIZE, link_column='Player'),
-                                    html.Div(
-                                        [
-                                            dcc.Graph(id='barchart', config={'displayModeBar': False})], style={'position': 'absolute', 'right': 0, 'top':'42px'}
+                                    dcc.RangeSlider(id='year_slider',
+                                                    min=2015,
+                                                    max=2022,
+                                                    value=[2017, 2022],
+                                                    marks={i: 'Label {}'.format(i) if i == 1 else str(i) for i in
+                                                           range(2015, 2023)},
+                                                    ),
+                                    dbc.RadioItems(
+                                        id="month_selector",
+                                        options=[{'label': 'Jan', 'value': 'Jan'},
+                                                 {'label': 'Feb', 'value': 'Feb'},
+                                                 {'label': 'Mar', 'value': 'Mar'},
+                                                 {'label': 'Apr', 'value': 'Apr'},
+                                                 {'label': 'May', 'value': 'May'},
+                                                 {'label': 'Jun', 'value': 'Jun'},
+                                                 {'label': 'Jul', 'value': 'Jul'},
+                                                 {'label': 'Aug', 'value': 'Aug'},
+                                                 {'label': 'Sep', 'value': 'Sep'},
+                                                 {'label': 'Oct', 'value': 'Oct'},
+                                                 {'label': 'Nov', 'value': 'Nov'},
+                                                 {'label': 'Dec', 'value': 'Dec'},
+                                                 {'label': 'All', 'value': 'All'},
+                                                 ],
+                                        labelClassName="date-group-labels",
+                                        labelCheckedClassName="date-group-labels-checked",
+                                        inline=True,
+                                        value='All',
+                                        style={'margin': '0 20px 20px 0'}
                                     ),
-                                ], style={'display': 'flex', 'position': 'relative', 'width': '100%'})
-                        ]),
+
+                            ], className="dash_filter"),
+                            dcc.Graph(figure=fig, config={'displayModeBar': False})
                     ], className='dash__graph_block'),
                     footer
 
